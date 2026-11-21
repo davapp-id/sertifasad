@@ -37,7 +37,7 @@ function redraw(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const
     const r=7*1123/Math.max(1,pv.clientWidth);hdl={x:b.x2+5,y:b.y2+5,r,cx:(b.x1+b.x2)/2,cy:(b.y1+b.y2)/2};pc.fillStyle='#fff';pc.lineWidth=2*r/7;pc.fillRect(hdl.x-r,hdl.y-r,2*r,2*r);pc.strokeRect(hdl.x-r,hdl.y-r,2*r,2*r)}
   pc.setLineDash([]);pc.setTransform(1,0,0,1,0,0);pv.style.touchAction=st.selEl>=0?'none':'pan-x pan-y';
   $('evChip').textContent=st.cfg.ev;$('pvName').textContent=st.rows.length?`Sertifikat ${st.sel+1} dari ${st.rows.length}`:'Daftar masih kosong'})}
-function stats(){const j=st.rows.filter(r=>r.h!=='Peserta').length;$('sampleNote').hidden=!st.sample}
+function stats(){}
 function renderList(){
   const desas=[...new Set(st.rows.map(r=>r.d).filter(Boolean))];$('dlD').innerHTML=desas.map(d=>`<option value="${esc(d)}">`).join('');
   const isD=st.cfg.mode==='desa',who=isD?'desa':'peserta';$('list').classList.toggle('desa',isD);
@@ -89,14 +89,6 @@ function rowsFrom(table,map,fill){const out=[];let lastD='',lastSD='';
     if(!n||/^\d+$/.test(n)||/^=/.test(n))continue;
     out.push({n,h:parseHasil(g('h')),k:parseKat(g('k')),d:fill?lastD:dRaw,sd:fill?lastSD:sdRaw,kk:g('kk')})}
   return out}
-$('btnPaste').onclick=()=>{
-  const lines=$('paste').value.split(/\r?\n/).filter(l=>l.trim());const cells=lines.map(l=>(l.includes('\t')?l.split('\t'):l.split(';')).map(x=>x.trim()));
-  let map=st.cfg.mode==='desa'?{n:0,h:1,k:2}:{n:0,h:1,d:2,sd:3,kk:4},fill=false,body=cells;const hi=cells.findIndex(c=>headerMap(c));
-  if(hi>=0&&hi<5){map=headerMap(cells[hi]);fill=true;body=cells.slice(hi+1)}
-  const add=rowsFrom(body,map,fill);
-  if(!add.length){msg('Belum ada nama yang bisa dibaca dari kotak tempel.',1);return}
-  if(st.sample){st.rows=[]}st.rows.push(...add);st.sel=st.rows.length-add.length;$('paste').value='';renderList();touch();msg(add.length+' peserta ditambahkan ke daftar.');
-};
 
 /* pengaturan & kejuaraan */
 const BUILT={kejurkab:1,pasanggiri:1};
@@ -108,13 +100,8 @@ function short(ev){return String(ev||'').replace(/^KEJUARAAN\s+/i,'').replace(/\
 function renderEvTabs(){$('evTabs').innerHTML=Object.entries(st.ev).map(([id,e])=>{const c=id===st.cur?st.cfg:e.cfg;return`<button type="button" role="tab" aria-selected="${id===st.cur}" data-evtab="${id}"><b>${esc(short(c.ev))}</b><span>${c.mode==='desa'?'Per desa · putra/putri':'Perorangan'} · ${(id===st.cur?st.rows:e.rows||[]).length} data</span></button>`}).join('')}
 function applyMode(){const d=st.cfg.mode==='desa';document.body.classList.toggle('mode-desa',d);$('prefixBox').hidden=!d;
   $('listTitle').textContent=d?'Daftar Desa':'Daftar Peserta';
-  $('pasteHelp').innerHTML=d?'Satu desa per baris. Paling mudah: salin dari Excel <b>beserta baris judulnya</b> (Nama Desa, Hasil, Kategori). Tanpa judul, urutannya: Nama desa; Hasil; Putra/Putri.':'Satu peserta per baris. Paling mudah: salin dari Excel <b>beserta baris judulnya</b> (Nama, Desa, SD Kelas, Kategori Kelas, Hasil). Tanpa judul, urutannya: Nama; Hasil; Desa; SD Kelas; Kategori Kelas.';
-  $('paste').placeholder=d?'Permai Raya;Juara 1;Putri\nSangatta Selatan;Juara 2;Putra\nBengalon;;Putri':'Ahmad Fauzan;Juara 1;Sangatta Utara;1-2;A\nNabila Zahra;Juara 2;Bengalon;3-4;B\nRizky Pratama';
-  $('xlStep').innerHTML=d?'Isi <b>Nama Desa</b>, lalu pilih <b>Hasil</b> dan <b>Kategori</b> (Putra/Putri) dari daftar pilihan.':'Isi Nama, Desa, SD Kelas, dan Kategori Kelas, lalu pilih <b>Hasil</b> dari daftar pilihan.';
-  $('sampleNote').textContent=d?'Daftar ini berisi contoh desa. Ganti atau kosongkan, lalu isi dengan desa peserta Anda.':'Daftar ini berisi contoh nama. Ganti atau kosongkan, lalu isi dengan peserta Anda.';
   $('pvWhoLbl').textContent=d?'Pratinjau untuk desa':'Pratinjau untuk peserta';
-  const sh=short(st.cfg.ev);$('xlTitle').textContent='Excel '+sh;$('btnTpl').textContent='Unduh template Excel '+sh;$('btnExp').textContent='Ekspor daftar '+sh+' ke Excel';renderEvTabs();
-  $('xlNote').innerHTML=d?'File rekap lain juga bisa diunggah selama ada kolom <b>Desa</b> atau <b>Nama Desa</b>; kolom Hasil dan Kategori (Putra/Putri) dikenali otomatis.':'File rekap lain, misalnya Rekap Atlit Perdesa, juga bisa langsung diunggah selama ada kolom <b>Nama</b>. Kolom Desa, SD Kelas, dan Kategori Kelas dikenali otomatis, termasuk sel yang digabung (merge).'}
+  renderEvTabs()}
 function switchEv(id){syncCur();st.cur=id;loadCur();if(typeof hist!=='undefined'){hist.length=0;$('btnLUndo').disabled=true}loadCfg();renderList();renderElSel();insp();loadFonts(st.layout).then(redraw);redraw();save()}
 $('evTabs').addEventListener('click',e=>{const b=e.target.closest('[data-evtab]');if(b&&b.dataset.evtab!==st.cur)switchEv(b.dataset.evtab)});
 $('evSel').onchange=()=>{const v=$('evSel').value;
@@ -237,10 +224,7 @@ function setFull(on){$('center').classList.toggle('full',on);$('zFull').textCont
 $('zFull').onclick=()=>setFull(!$('center').classList.contains('full'));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('center').classList.contains('full'))setFull(false)});
 new ResizeObserver(layoutCanvas).observe(zw);
-st.ui=st.ui||{L:true,R:true};
-function applyPanels(){const v=$('v-desain');v.classList.toggle('hideL',!st.ui.L);v.classList.toggle('hideR',!st.ui.R);$('tgL').setAttribute('aria-pressed',st.ui.L);$('tgR').setAttribute('aria-pressed',st.ui.R);requestAnimationFrame(layoutCanvas)}
-$('tgL').onclick=()=>{st.ui.L=!st.ui.L;applyPanels();save()};$('tgR').onclick=()=>{st.ui.R=!st.ui.R;applyPanels();save()};
-applyPanels();
+st.ui={L:true,R:true};
 let step=1;$('stepChip').onclick=()=>{step=step===1?5:step===5?10:1;$('stepChip').textContent='Geser per '+step+' px'};
 
 /* ---------- menu & halaman ---------- */
@@ -255,7 +239,7 @@ function renderWho(){const w=$('pvWho');w.innerHTML=st.rows.length?st.rows.map((
 $('pvWho').onchange=()=>{st.sel=+$('pvWho').value||0;renderList();redraw()};
 
 /* ---------- PDF & cetak ---------- */
-function msg(t,err){const m=$('msg');m.textContent=t;m.className=err?'err':''}
+function msg(t,err){['msg','pvmMsg'].forEach(id=>{const m=$(id);if(m){m.textContent=t;m.className=err?'err':''}})}
 const uniq=(rows,k)=>[...new Set(rows.map(r=>r[k]).filter(Boolean))].sort((x,y)=>String(x).localeCompare(String(y),'id',{numeric:true}));
 function evData(id){syncCur();const e=st.ev[id];return{rows:e.rows||[],layout:e.layout,cfg:{...DEF,...e.cfg}}}
 function pfilter(id){const c=document.querySelector(`.pc[data-ev="${id}"]`);if(!c)return{f:'all'};const q=x=>c.querySelector(x);return{f:(q(`[name="flt-${id}"]:checked`)||{}).value||'all',d:q('.fD')?q('.fD').value:'',sd:q('.fS')?q('.fS').value:'',k:(q(`[name="fk-${id}"]:checked`)||{}).value||''}}
@@ -271,13 +255,13 @@ function renderPrint(){const box=$('printCards');if(!box||!st.ev)return;syncCur(
 <div class="seg" role="radiogroup" aria-label="Yang dicetak, ${esc(sh)}">${[['all','Semua'],['juara','Juara saja'],['peserta','Penghargaan saja']].map(([v,l])=>`<label><input type="radio" name="flt-${id}" value="${v}"${(f.f||'all')===v?' checked':''}> ${l}</label>`).join('')}</div>
 ${isD?`<p class="lbl2">Putra / putri</p><div class="seg" role="radiogroup" aria-label="Putra atau putri, ${esc(sh)}">${[['Putra','Putra'],['Putri','Putri'],['','Putra &amp; Putri']].map(([v,l])=>`<label><input type="radio" name="fk-${id}" value="${v}"${(f.k||'')===v?' checked':''}> ${l} <span class="cnt">(${v?rows.filter(r=>r.k===v).length:rows.length})</span></label>`).join('')}</div>`:''}<div class="grid3" style="margin-top:4px">${isD?'':sel('fD','Desa',uniq(rows,'d'),f.d,'Semua desa')+sel('fS','SD kelas',sds,f.sd,'Semua SD kelas')}</div>
 <p class="note pcount" style="font-weight:600;color:var(--acc2)"></p>
-<div class="row-btns" style="margin-top:8px"><button type="button" data-pdf="${id}">Unduh PDF ${esc(sh)}</button>${window.claude?'':`<button type="button" class="ghost" data-prn="${id}">Cetak langsung</button>`}</div>
-${sds.length?`<div class="persd"><p class="lbl">Unduh PDF terpisah per SD kelas</p><div class="row-btns" style="margin-top:6px">${sds.map(x=>`<button type="button" class="ghost" data-pdf="${id}" data-sd="${esc(x)}">SD Kelas ${esc(x)} <span class="cnt"></span></button>`).join('')}<button type="button" class="ghost" data-allsd="${id}">Semua SD kelas (${sds.length} file)</button></div></div>`:''}
+<div class="row-btns" style="margin-top:8px"><button type="button" class="ghost" data-prev="${id}">Pratinjau</button><button type="button" data-pdf="${id}">Unduh PDF ${esc(sh)}</button>${window.claude?'':`<button type="button" class="ghost" data-prn="${id}">Cetak langsung</button>`}</div>
+${sds.length?`<div class="persd"><p class="lbl">Per SD kelas</p><div class="sdlist">${sds.map(x=>`<div class="sdrow" data-sdr="${esc(x)}"><span>SD Kelas ${esc(x)} <span class="cnt"></span></span><button type="button" class="ghost sm" data-prev="${id}" data-sd="${esc(x)}">Pratinjau</button><button type="button" class="ghost sm" data-pdf="${id}" data-sd="${esc(x)}">Unduh PDF</button></div>`).join('')}</div><div class="row-btns" style="margin-top:10px"><button type="button" class="ghost" data-allsd="${id}">Unduh semua SD kelas (${sds.length} file terpisah)</button></div></div>`:''}
 </div>`}).join('');
   document.querySelectorAll('.pc').forEach(c=>countCard(c.dataset.ev))}
 function countCard(id){const c=document.querySelector(`.pc[data-ev="${id}"]`);if(!c)return;const rows=st.ev[id].rows||[],f=pfilter(id);
   c.querySelector('.pcount').textContent=selRows(rows,f).length+' sertifikat sesuai pilihan di atas';
-  c.querySelectorAll('[data-sd]').forEach(b=>{b.querySelector('.cnt').textContent='('+selRows(rows,f,{sd:b.dataset.sd}).length+')'});
+  c.querySelectorAll('.sdrow').forEach(r=>{r.querySelector('.cnt').textContent='('+selRows(rows,f,{sd:r.dataset.sdr}).length+')'});
   if(!dlOK)c.querySelectorAll('[data-pdf],[data-allsd]').forEach(b=>b.disabled=true)}
 $('printCards').addEventListener('change',e=>{const c=e.target.closest('.pc');if(c)countCard(c.dataset.ev)});
 function suffix(f,over){const g={...f,...over};return[g.sd?'SD Kelas '+g.sd:'',g.d||'',g.k||'',g.f==='juara'?'Juara':g.f==='peserta'?'Penghargaan':''].filter(Boolean).join(' - ')}
@@ -292,11 +276,35 @@ async function doPdf(ed,list,suf,b){if(!list.length){msg('Tidak ada sertifikat u
     const r=await saveFile(name,doc.output('blob'));msg(r===true?'PDF tersimpan: '+name:r,r!==true);return r}
   catch(err){msg('Gagal membuat PDF: '+(err.message||err),1);return false}finally{b.disabled=false}}
 $('printCards').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.pdf){const id=b.dataset.pdf,ed=evData(id),f=pfilter(id),over=b.dataset.sd!=null?{sd:b.dataset.sd}:{};await doPdf(ed,selRows(ed.rows,f,over),suffix(f,over),b)}
+  if(b.dataset.prev){const id=b.dataset.prev,ed=evData(id),f=pfilter(id),over=b.dataset.sd!=null?{sd:b.dataset.sd}:{},list=selRows(ed.rows,f,over);if(!list.length){msg('Tidak ada sertifikat untuk pilihan ini.',1);return}openPreview(ed,list,suffix(f,over))}
+  else if(b.dataset.pdf){const id=b.dataset.pdf,ed=evData(id),f=pfilter(id),over=b.dataset.sd!=null?{sd:b.dataset.sd}:{};await doPdf(ed,selRows(ed.rows,f,over),suffix(f,over),b)}
   else if(b.dataset.allsd){const id=b.dataset.allsd,ed=evData(id),f=pfilter(id);let n=0;for(const x of uniq(ed.rows,'sd')){const list=selRows(ed.rows,f,{sd:x});if(!list.length)continue;const r=await doPdf(ed,list,suffix(f,{sd:x}),b);if(r!==true)return;n++}if(n)msg(n+' file PDF per SD kelas tersimpan.')}
   else if(b.dataset.prn){const id=b.dataset.prn,ed=evData(id),list=selRows(ed.rows,pfilter(id));if(!list.length){msg('Tidak ada sertifikat untuk pilihan ini.',1);return}
     b.disabled=true;const pa=$('printArea');pa.innerHTML='';await ready;await pages(list,u=>{const im=new Image();im.src=u;im.alt='';pa.appendChild(im)},ed.layout,ed.cfg);
     await Promise.all([...pa.images].map(i=>i.decode().catch(()=>{})));msg('Membuka jendela cetak…');b.disabled=false;window.print()}});
+/* ---------- pratinjau sebelum unduh ---------- */
+const PV={ed:null,list:[],suf:'',i:-1,obs:null,last:null};
+function openPreview(ed,list,suf){PV.ed=ed;PV.list=list;PV.suf=suf;PV.last=document.activeElement;
+  $('pvmTitle').textContent='Pratinjau '+short(ed.cfg.ev)+(suf?' · '+suf:'');$('pvmSub').textContent=list.length+' sertifikat — periksa dulu sebelum diunduh. Klik sertifikat untuk melihat lebih besar.';
+  $('pvmMsg').textContent='';$('pvModal').hidden=false;document.body.classList.add('noscroll');$('pvmPdf').textContent='Unduh PDF ('+list.length+')';
+  loadFonts(ed.layout).then(()=>pvGrid());preloadLibSafe();$('pvmClose').focus()}
+function preloadLibSafe(){if(typeof preloadLib==='function')preloadLib('jspdf')}
+function pvClose(){$('pvModal').hidden=true;document.body.classList.remove('noscroll');if(PV.obs)PV.obs.disconnect();$('pvmBody').innerHTML='';PV.i=-1;if(PV.last&&PV.last.focus)PV.last.focus()}
+function pvGrid(){PV.i=-1;$('pvmGrid').hidden=true;const body=$('pvmBody');body.className='pvmbody grid';
+  body.innerHTML=PV.list.map((p,i)=>`<button type="button" class="pvth" data-i="${i}" aria-label="Lihat besar sertifikat ${i+1}"><canvas width="561" height="397"></canvas><span><b>${i+1}.</b> ${esc(p.n||'(tanpa nama)')}<em>${esc(p.h)}${p.k?' '+esc(p.k):''}${p.sd?' · SD '+esc(p.sd):''}${p.kk?' · Kelas '+esc(p.kk):''}</em></span></button>`).join('');
+  if(PV.obs)PV.obs.disconnect();
+  PV.obs=new IntersectionObserver(es=>es.forEach(en=>{if(!en.isIntersecting)return;const b=en.target;PV.obs.unobserve(b);drawCert(b.querySelector('canvas').getContext('2d'),0.5,PV.list[+b.dataset.i],PV.ed.cfg,PV.ed.layout)}),{root:body,rootMargin:'400px'});
+  body.querySelectorAll('.pvth').forEach(b=>PV.obs.observe(b));body.scrollTop=0}
+function pvOne(i){PV.i=i;$('pvmGrid').hidden=false;const p=PV.list[i],body=$('pvmBody');body.className='pvmbody one';
+  body.innerHTML=`<div class="pvone"><button type="button" class="ghost nav" id="pvPrev" aria-label="Sertifikat sebelumnya"${i?'':' disabled'}>‹</button><canvas id="pvBig" width="1684" height="1191" role="img" aria-label="Sertifikat ${esc(p.n||'')}"></canvas><button type="button" class="ghost nav" id="pvNext" aria-label="Sertifikat berikutnya"${i<PV.list.length-1?'':' disabled'}>›</button></div><p class="pvcap"><b>${i+1} / ${PV.list.length}</b> · ${esc(p.n||'(tanpa nama)')} — ${esc(p.h)}${p.k?' '+esc(p.k):''}</p>`;
+  drawCert($('pvBig').getContext('2d'),1.5,p,PV.ed.cfg,PV.ed.layout);
+  $('pvPrev').onclick=()=>pvOne(i-1);$('pvNext').onclick=()=>pvOne(i+1)}
+$('pvmBody').addEventListener('click',e=>{const b=e.target.closest('.pvth');if(b)pvOne(+b.dataset.i)});
+$('pvmGrid').onclick=()=>pvGrid();$('pvmClose').onclick=pvClose;
+$('pvModal').addEventListener('click',e=>{if(e.target.id==='pvModal')pvClose()});
+document.addEventListener('keydown',e=>{if($('pvModal').hidden)return;if(e.key==='Escape'){pvClose();return}
+  if(PV.i>=0&&e.key==='ArrowRight'&&PV.i<PV.list.length-1)pvOne(PV.i+1);if(PV.i>=0&&e.key==='ArrowLeft'&&PV.i>0)pvOne(PV.i-1)});
+$('pvmPdf').onclick=()=>doPdf(PV.ed,PV.list,PV.suf,$('pvmPdf'));
 let dl=null;
 async function saveFile(name,blob){
   if(dl){try{await dl.save({filename:name,data:blob});return true}catch(e){return e&&e.code==='declined'?'Penyimpanan dibatalkan.':'File tidak bisa disimpan di tampilan ini.'}}
