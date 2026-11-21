@@ -239,31 +239,36 @@ function renderWho(){const w=$('pvWho');w.innerHTML=st.rows.length?st.rows.map((
 $('pvWho').onchange=()=>{st.sel=+$('pvWho').value||0;renderList();redraw()};
 
 /* ---------- PDF & cetak ---------- */
-function msg(t,err){['msg','pvmMsg'].forEach(id=>{const m=$(id);if(m){m.textContent=t;m.className=err?'err':''}})}
+function msg(t,err){['msg'].forEach(id=>{const m=$(id);if(m){m.textContent=t;m.className=err?'err':''}})}
 const uniq=(rows,k)=>[...new Set(rows.map(r=>r[k]).filter(Boolean))].sort((x,y)=>String(x).localeCompare(String(y),'id',{numeric:true}));
 function evData(id){syncCur();const e=st.ev[id];return{rows:e.rows||[],layout:e.layout,cfg:{...DEF,...e.cfg}}}
-function pfilter(id){const c=document.querySelector(`.pc[data-ev="${id}"]`);if(!c)return{f:'all'};const q=x=>c.querySelector(x);return{f:(q(`[name="flt-${id}"]:checked`)||{}).value||'all',d:q('.fD')?q('.fD').value:'',sd:q('.fS')?q('.fS').value:'',k:(q(`[name="fk-${id}"]:checked`)||{}).value||''}}
 function selRows(rows,f,over={}){f={...f,...over};return rows.filter(r=>(f.f==='all'||(f.f==='juara'?r.h!=='Peserta':r.h==='Peserta'))&&(!f.d||r.d===f.d)&&(!f.sd||r.sd===f.sd)&&(!f.k||r.k===f.k))}
 let dlOK=true;
-function renderPrint(){const box=$('printCards');if(!box||!st.ev)return;syncCur();
-  const keep={};document.querySelectorAll('.pc').forEach(c=>{keep[c.dataset.ev]=pfilter(c.dataset.ev)});
-  box.innerHTML=Object.entries(st.ev).map(([id,e])=>{const rows=e.rows||[],cfg={...DEF,...e.cfg},isD=cfg.mode==='desa',j=rows.filter(r=>r.h!=='Peserta').length,f=keep[id]||{f:'all'},sh=short(cfg.ev);
-    const sel=(cls,lbl,vals,v,all)=>vals.length?`<div><label>${lbl}<select class="${cls}"><option value="">${all}</option>${vals.map(x=>`<option${x===v?' selected':''}>${esc(x)}</option>`).join('')}</select></label></div>`:'';
-    const sds=isD?[]:uniq(rows,'sd');
-    return `<div class="card pc" data-ev="${id}"><div class="pchead"><h2>${esc(cfg.ev)}</h2><span class="tag">${isD?'Per desa · putra/putri':'Perorangan'}</span></div>
-<div class="kpis"><div class="kpi"><b>${rows.length}</b><span>sertifikat</span></div><div class="kpi"><b>${j}</b><span>juara</span></div><div class="kpi"><b>${rows.length-j}</b><span>penghargaan</span></div></div>
-<div class="seg" role="radiogroup" aria-label="Yang dicetak, ${esc(sh)}">${[['all','Semua'],['juara','Juara saja'],['peserta','Penghargaan saja']].map(([v,l])=>`<label><input type="radio" name="flt-${id}" value="${v}"${(f.f||'all')===v?' checked':''}> ${l}</label>`).join('')}</div>
-${isD?`<p class="lbl2">Putra / putri</p><div class="seg" role="radiogroup" aria-label="Putra atau putri, ${esc(sh)}">${[['Putra','Putra'],['Putri','Putri'],['','Putra &amp; Putri']].map(([v,l])=>`<label><input type="radio" name="fk-${id}" value="${v}"${(f.k||'')===v?' checked':''}> ${l} <span class="cnt">(${v?rows.filter(r=>r.k===v).length:rows.length})</span></label>`).join('')}</div>`:''}<div class="grid3" style="margin-top:4px">${isD?'':sel('fD','Desa',uniq(rows,'d'),f.d,'Semua desa')+sel('fS','SD kelas',sds,f.sd,'Semua SD kelas')}</div>
-<p class="note pcount" style="font-weight:600;color:var(--acc2)"></p>
-<div class="row-btns" style="margin-top:8px"><button type="button" class="ghost" data-prev="${id}">Pratinjau</button><button type="button" data-pdf="${id}">Unduh PDF ${esc(sh)}</button>${window.claude?'':`<button type="button" class="ghost" data-prn="${id}">Cetak langsung</button>`}</div>
-${sds.length?`<div class="persd"><p class="lbl">Per SD kelas</p><div class="sdlist">${sds.map(x=>`<div class="sdrow" data-sdr="${esc(x)}"><span>SD Kelas ${esc(x)} <span class="cnt"></span></span><button type="button" class="ghost sm" data-prev="${id}" data-sd="${esc(x)}">Pratinjau</button><button type="button" class="ghost sm" data-pdf="${id}" data-sd="${esc(x)}">Unduh PDF</button></div>`).join('')}</div><div class="row-btns" style="margin-top:10px"><button type="button" class="ghost" data-allsd="${id}">Unduh semua SD kelas (${sds.length} file terpisah)</button></div></div>`:''}
-</div>`}).join('');
-  document.querySelectorAll('.pc').forEach(c=>countCard(c.dataset.ev))}
-function countCard(id){const c=document.querySelector(`.pc[data-ev="${id}"]`);if(!c)return;const rows=st.ev[id].rows||[],f=pfilter(id);
-  c.querySelector('.pcount').textContent=selRows(rows,f).length+' sertifikat sesuai pilihan di atas';
-  c.querySelectorAll('.sdrow').forEach(r=>{r.querySelector('.cnt').textContent='('+selRows(rows,f,{sd:r.dataset.sdr}).length+')'});
-  if(!dlOK)c.querySelectorAll('[data-pdf],[data-allsd]').forEach(b=>b.disabled=true)}
-$('printCards').addEventListener('change',e=>{const c=e.target.closest('.pc');if(c)countCard(c.dataset.ev)});
+const PF={};let pIdx=0;
+const segc=(name,opts,val,lbl)=>`<div class="segc" role="radiogroup" aria-label="${lbl}">${opts.map(([v,l])=>`<label><input type="radio" name="${name}" value="${esc(v)}"${v===val?' checked':''}><span>${l}</span></label>`).join('')}</div>`;
+function pState(){syncCur();const id=st.cur,e=st.ev[id],cfg={...DEF,...e.cfg},isD=cfg.mode==='desa',rows=e.rows||[];
+  const f=PF[id]=PF[id]||{f:'all',d:'',sd:'',k:''};const sds=isD?[]:uniq(rows,'sd'),desas=isD?[]:uniq(rows,'d');
+  if(f.sd&&!sds.includes(f.sd))f.sd='';if(f.d&&!desas.includes(f.d))f.d='';
+  return{id,e,cfg,isD,rows,f,sds,desas,list:selRows(rows,f)}}
+function renderPrint(){const box=$('printPanel');if(!box||!st.ev||$('v-cetak').hidden)return;const P=pState(),{cfg,isD,f,sds,desas,list}=P,suf=suffix(f,{});
+  box.innerHTML=`<label class="lbl3">Kejuaraan</label>${segc('pev',Object.keys(st.ev).map(id=>[id,esc(short((id===st.cur?st.cfg:st.ev[id].cfg).ev))]),st.cur,'Kejuaraan')}
+<label class="lbl3">Yang dicetak</label>${segc('pf',[['all','Semua'],['juara','Juara'],['peserta','Penghargaan']],f.f,'Yang dicetak')}
+${isD?`<label class="lbl3">Putra / putri</label>${segc('pk',[['Putra','Putra'],['Putri','Putri'],['','Putra &amp; Putri']],f.k,'Putra atau putri')}`
+:`${sds.length?`<label class="lbl3">SD kelas</label>${segc('psd',[['','Semua'],...sds.map(x=>[x,esc(x)])],f.sd,'SD kelas')}`:''}${desas.length?`<label class="lbl3" for="pd">Desa</label><select id="pd"><option value="">Semua desa</option>${desas.map(x=>`<option${x===f.d?' selected':''}>${esc(x)}</option>`).join('')}</select>`:''}`}
+<div class="infobox"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>${list.length?`Satu ${isD?'desa':'nama'} = satu halaman A4 mendatar. Saat mencetak PDF pilih kertas A4, Landscape, margin None, skala 100%.`:`Belum ada data untuk pilihan ini. Isi dulu di halaman Peserta.`}</span></div>
+<p class="pcount2"><b>${list.length}</b> sertifikat ${esc(short(cfg.ev))}${suf?' · '+esc(suf):''}</p>
+<button type="button" class="bigbtn" id="pPdf"${list.length&&dlOK?'':' disabled'}><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 8V3h10v5"/><rect x="3" y="8" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/></svg>Unduh PDF</button>
+${window.claude?'':`<button type="button" class="ghost wide" id="pPrn"${list.length?'':' disabled'}>Cetak langsung</button>`}
+<div id="msg" role="status"></div>`;
+  pIdx=Math.min(pIdx,Math.max(0,list.length-1));drawPrintPreview()}
+function drawPrintPreview(){const c=$('pCanvas');if(!c)return;const P=pState(),{e,cfg,isD,list}=P;
+  const ex=isD?{n:'Contoh Desa',h:'Juara 1',k:'Putri'}:{n:'Contoh Peserta',h:'Juara 1',k:'',d:'Sangatta Utara',sd:'1-2',kk:'A'};
+  const p=list[pIdx]||ex;
+  $('pInfo').textContent=list.length?`sertifikat ${pIdx+1} dari ${list.length}`:'contoh tampilan';
+  $('pName').textContent=list.length?`${p.n||'(tanpa nama)'} — ${p.h}${p.k?' '+p.k:''}${p.sd?' · SD Kelas '+p.sd:''}${p.kk?' · Kelas '+p.kk:''}`:'';
+  $('pPrev').disabled=pIdx<=0;$('pNext').disabled=pIdx>=list.length-1;
+  const R=Math.round(Math.min(3400,Math.max(1123,c.clientWidth*Math.min(2,window.devicePixelRatio||1))));if(Math.abs(c.width-R)>8){c.width=R;c.height=Math.round(R*794/1123)}
+  loadFonts(e.layout).then(()=>drawCert(c.getContext('2d'),c.width/1123,p,cfg,e.layout));drawCert(c.getContext('2d'),c.width/1123,p,cfg,e.layout)}
 function suffix(f,over){const g={...f,...over};return[g.sd?'SD Kelas '+g.sd:'',g.d||'',g.k||'',g.f==='juara'?'Juara':g.f==='peserta'?'Penghargaan':''].filter(Boolean).join(' - ')}
 async function pages(list,each,layout,cfg){await loadFonts(layout);const cv=document.createElement('canvas');cv.width=2246;cv.height=1588;const c=cv.getContext('2d');
   for(let i=0;i<list.length;i++){drawCert(c,2,list[i],cfg,layout);await each(cv.toDataURL('image/jpeg',.88),i);msg(`Menyiapkan sertifikat ${i+1} dari ${list.length}…`);await new Promise(r=>setTimeout(r,0))}}
@@ -275,36 +280,17 @@ async function doPdf(ed,list,suf,b){if(!list.length){msg('Tidak ada sertifikat u
     const name=('Sertifikat '+short(ed.cfg.ev)+(suf?' - '+suf:'')+' ('+list.length+' nama).pdf').replace(/[\\/:*?"<>|]/g,'');
     const r=await saveFile(name,doc.output('blob'));msg(r===true?'PDF tersimpan: '+name:r,r!==true);return r}
   catch(err){msg('Gagal membuat PDF: '+(err.message||err),1);return false}finally{b.disabled=false}}
-$('printCards').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.prev){const id=b.dataset.prev,ed=evData(id),f=pfilter(id),over=b.dataset.sd!=null?{sd:b.dataset.sd}:{},list=selRows(ed.rows,f,over);if(!list.length){msg('Tidak ada sertifikat untuk pilihan ini.',1);return}openPreview(ed,list,suffix(f,over))}
-  else if(b.dataset.pdf){const id=b.dataset.pdf,ed=evData(id),f=pfilter(id),over=b.dataset.sd!=null?{sd:b.dataset.sd}:{};await doPdf(ed,selRows(ed.rows,f,over),suffix(f,over),b)}
-  else if(b.dataset.allsd){const id=b.dataset.allsd,ed=evData(id),f=pfilter(id);let n=0;for(const x of uniq(ed.rows,'sd')){const list=selRows(ed.rows,f,{sd:x});if(!list.length)continue;const r=await doPdf(ed,list,suffix(f,{sd:x}),b);if(r!==true)return;n++}if(n)msg(n+' file PDF per SD kelas tersimpan.')}
-  else if(b.dataset.prn){const id=b.dataset.prn,ed=evData(id),list=selRows(ed.rows,pfilter(id));if(!list.length){msg('Tidak ada sertifikat untuk pilihan ini.',1);return}
-    b.disabled=true;const pa=$('printArea');pa.innerHTML='';await ready;await pages(list,u=>{const im=new Image();im.src=u;im.alt='';pa.appendChild(im)},ed.layout,ed.cfg);
+$('printPanel').addEventListener('change',e=>{const t=e.target,P=pState(),f=P.f;
+  if(t.name==='pev'){switchEv(t.value);pIdx=0;renderPrint();return}
+  if(t.name==='pf')f.f=t.value;else if(t.name==='pk')f.k=t.value;else if(t.name==='psd')f.sd=t.value;else if(t.id==='pd')f.d=t.value;else return;
+  pIdx=0;renderPrint()});
+$('printPanel').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;const P=pState(),ed=evData(P.id);
+  if(b.id==='pPdf')await doPdf(ed,P.list,suffix(P.f,{}),b);
+  else if(b.id==='pPrn'){const list=P.list;if(!list.length)return;b.disabled=true;const pa=$('printArea');pa.innerHTML='';await ready;await pages(list,u=>{const im=new Image();im.src=u;im.alt='';pa.appendChild(im)},ed.layout,ed.cfg);
     await Promise.all([...pa.images].map(i=>i.decode().catch(()=>{})));msg('Membuka jendela cetak…');b.disabled=false;window.print()}});
-/* ---------- pratinjau sebelum unduh ---------- */
-const PV={ed:null,list:[],suf:'',i:-1,obs:null,last:null};
-function openPreview(ed,list,suf){PV.ed=ed;PV.list=list;PV.suf=suf;PV.last=document.activeElement;
-  $('pvmTitle').textContent='Pratinjau '+short(ed.cfg.ev)+(suf?' · '+suf:'');$('pvmSub').textContent=list.length+' sertifikat — periksa dulu sebelum diunduh. Klik sertifikat untuk melihat lebih besar.';
-  $('pvmMsg').textContent='';$('pvModal').hidden=false;document.body.classList.add('noscroll');$('pvmPdf').textContent='Unduh PDF ('+list.length+')';
-  loadFonts(ed.layout).then(()=>pvGrid());preloadLibSafe();$('pvmClose').focus()}
-function preloadLibSafe(){if(typeof preloadLib==='function')preloadLib('jspdf')}
-function pvClose(){$('pvModal').hidden=true;document.body.classList.remove('noscroll');if(PV.obs)PV.obs.disconnect();$('pvmBody').innerHTML='';PV.i=-1;if(PV.last&&PV.last.focus)PV.last.focus()}
-function pvGrid(){PV.i=-1;$('pvmGrid').hidden=true;const body=$('pvmBody');body.className='pvmbody grid';
-  body.innerHTML=PV.list.map((p,i)=>`<button type="button" class="pvth" data-i="${i}" aria-label="Lihat besar sertifikat ${i+1}"><canvas width="561" height="397"></canvas><span><b>${i+1}.</b> ${esc(p.n||'(tanpa nama)')}<em>${esc(p.h)}${p.k?' '+esc(p.k):''}${p.sd?' · SD '+esc(p.sd):''}${p.kk?' · Kelas '+esc(p.kk):''}</em></span></button>`).join('');
-  if(PV.obs)PV.obs.disconnect();
-  PV.obs=new IntersectionObserver(es=>es.forEach(en=>{if(!en.isIntersecting)return;const b=en.target;PV.obs.unobserve(b);drawCert(b.querySelector('canvas').getContext('2d'),0.5,PV.list[+b.dataset.i],PV.ed.cfg,PV.ed.layout)}),{root:body,rootMargin:'400px'});
-  body.querySelectorAll('.pvth').forEach(b=>PV.obs.observe(b));body.scrollTop=0}
-function pvOne(i){PV.i=i;$('pvmGrid').hidden=false;const p=PV.list[i],body=$('pvmBody');body.className='pvmbody one';
-  body.innerHTML=`<div class="pvone"><button type="button" class="ghost nav" id="pvPrev" aria-label="Sertifikat sebelumnya"${i?'':' disabled'}>‹</button><canvas id="pvBig" width="1684" height="1191" role="img" aria-label="Sertifikat ${esc(p.n||'')}"></canvas><button type="button" class="ghost nav" id="pvNext" aria-label="Sertifikat berikutnya"${i<PV.list.length-1?'':' disabled'}>›</button></div><p class="pvcap"><b>${i+1} / ${PV.list.length}</b> · ${esc(p.n||'(tanpa nama)')} — ${esc(p.h)}${p.k?' '+esc(p.k):''}</p>`;
-  drawCert($('pvBig').getContext('2d'),1.5,p,PV.ed.cfg,PV.ed.layout);
-  $('pvPrev').onclick=()=>pvOne(i-1);$('pvNext').onclick=()=>pvOne(i+1)}
-$('pvmBody').addEventListener('click',e=>{const b=e.target.closest('.pvth');if(b)pvOne(+b.dataset.i)});
-$('pvmGrid').onclick=()=>pvGrid();$('pvmClose').onclick=pvClose;
-$('pvModal').addEventListener('click',e=>{if(e.target.id==='pvModal')pvClose()});
-document.addEventListener('keydown',e=>{if($('pvModal').hidden)return;if(e.key==='Escape'){pvClose();return}
-  if(PV.i>=0&&e.key==='ArrowRight'&&PV.i<PV.list.length-1)pvOne(PV.i+1);if(PV.i>=0&&e.key==='ArrowLeft'&&PV.i>0)pvOne(PV.i-1)});
-$('pvmPdf').onclick=()=>doPdf(PV.ed,PV.list,PV.suf,$('pvmPdf'));
+$('pPrev').onclick=()=>{if(pIdx>0){pIdx--;drawPrintPreview()}};$('pNext').onclick=()=>{pIdx++;drawPrintPreview()};
+document.addEventListener('keydown',e=>{if($('v-cetak').hidden||/INPUT|SELECT|TEXTAREA/.test((e.target||{}).tagName||''))return;if(e.key==='ArrowRight')$('pNext').click();if(e.key==='ArrowLeft')$('pPrev').click()});
+new ResizeObserver(()=>{if(!$('v-cetak').hidden)drawPrintPreview()}).observe($('pCanvas'));
 let dl=null;
 async function saveFile(name,blob){
   if(dl){try{await dl.save({filename:name,data:blob});return true}catch(e){return e&&e.code==='declined'?'Penyimpanan dibatalkan.':'File tidak bisa disimpan di tampilan ini.'}}
