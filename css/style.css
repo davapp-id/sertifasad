@@ -162,7 +162,7 @@ button.sm{min-height:36px;padding:4px 12px;font-size:14px}
 .tbl td.del button{background:transparent;border:0;color:var(--warn);min-height:42px;width:100%;padding:0;border-radius:0}
 .tbl td.del button:hover{background:light-dark(#fde8e4,#3a1d17)}
 .tbl .w-d{width:20%}.tbl .w-sd{width:10%}.tbl .w-kk{width:12%}.tbl .w-h{width:17%}.tbl .w-k{width:18%}
-.tbl tr.juara td.hcell select{font-weight:700;color:var(--acc2)}
+.tbl tr.juara td.hcell input{font-weight:700;color:var(--acc2)}
 .evtabs{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;max-width:1300px}
 .evtabs button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px 18px;min-height:56px;text-align:left}
 .evtabs button span{font-size:13px;font-weight:500;color:var(--mut)}

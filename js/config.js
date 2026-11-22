@@ -5,5 +5,5 @@
 //  (Deploy → New deployment → Web app → salin URL yang berakhiran /exec)
 window.APP_CONFIG = {
   GAS_URL: 'https://script.google.com/macros/s/AKfycby5nNbkRqX8XhDqy162RzMcGacMxRqrY53KLSDK3voM8ToKq8RHXcFiFiNiMgUFK0lY/exec',
-  VERSION: '1.0.4'
+  VERSION: '1.0.5'
 };

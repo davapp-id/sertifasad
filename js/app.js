@@ -42,7 +42,7 @@ function renderList(){
   const desas=[...new Set(st.rows.map(r=>r.d).filter(Boolean))];$('dlD').innerHTML=desas.map(d=>`<option value="${esc(d)}">`).join('');
   const isD=st.cfg.mode==='desa',who=isD?'desa':'peserta';$('list').classList.toggle('desa',isD);
   $('rowCount').textContent=st.rows.length+' '+who;
-  const hs=(r,i)=>`<td class="hcell w-h"><select data-f="h" aria-label="Hasil ${who} ${i+1}">${HASIL.map(h=>`<option${h===r.h?' selected':''}>${h}</option>`).join('')}</select></td>`;
+  const hs=(r,i)=>`<td class="hcell w-h"><input data-f="h" list="dlH" value="${esc(r.h||'Peserta')}" aria-label="Hasil ${who} ${i+1} (pilih atau ketik)" placeholder="Peserta" autocomplete="off"></td>`;
   const head=isD?'<tr><th>No</th><th>Nama Desa</th><th>Hasil</th><th>Putra / Putri</th><th><span class="vh">Hapus</span></th></tr>'
     :'<tr><th>No</th><th>Nama Peserta</th><th>Desa</th><th>SD Kelas</th><th>Kategori Kelas</th><th>Hasil</th><th><span class="vh">Hapus</span></th></tr>';
   const body=st.rows.map((r,i)=>`<tr class="item${i===st.sel?' sel':''}${r.h!=='Peserta'?' juara':''}" data-i="${i}"><td class="no">${i+1}</td>
@@ -61,7 +61,8 @@ $('list').addEventListener('focusin',e=>{const it=e.target.closest('.item');if(!
 let lastDel=null;
 $('list').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;const i=+b.dataset.del;lastDel={i,r:st.rows[i]};st.rows.splice(i,1);st.sel=Math.max(0,Math.min(st.sel,st.rows.length-1));$('btnUndo').hidden=false;renderList();touch()});
 $('btnUndo').onclick=()=>{if(!lastDel)return;st.rows.splice(lastDel.i,0,lastDel.r);st.sel=lastDel.i;lastDel=null;$('btnUndo').hidden=true;renderList();touch()};
-$('list').addEventListener('change',e=>{if(e.target.dataset.f==='h'){const tr=e.target.closest('tr');if(tr)tr.classList.toggle('juara',e.target.value!=='Peserta')}});
+$('list').addEventListener('change',e=>{const t=e.target;if(t.dataset.f!=='h')return;const tr=t.closest('tr');const v=normHasil(t.value);if(v!==t.value){t.value=v;const i=+tr.dataset.i;if(st.rows[i]){st.rows[i].h=v;touch()}}if(tr)tr.classList.toggle('juara',v!=='Peserta')});
+$('list').addEventListener('focusin',e=>{const t=e.target;if(t.dataset&&t.dataset.f==='h'&&t.value==='Peserta')t.select()});
 function addRow(after){const p=st.rows[after]||st.rows[st.rows.length-1]||{};const r={n:'',h:'Peserta',k:st.cfg.mode==='desa'?(p.k||''):'',d:p.d||'',sd:p.sd||'',kk:''};const at=after==null?st.rows.length:after+1;st.rows.splice(at,0,r);st.sel=at;return at}
 function focusCell(i,f){const el=document.querySelector(`#list tr[data-i="${i}"] [data-f="${f}"]`);if(el){el.focus();if(el.select)el.select()}}
 $('btnAdd').onclick=()=>{if(st.sample){st.rows=[];st.sample=false}const i=addRow();renderList();touch();focusCell(i,'n')};
@@ -77,7 +78,12 @@ $('list').addEventListener('paste',e=>{const t=e.target,tr=t.closest&&t.closest(
   st.sel=i;renderList();touch();focusCell(i,t.dataset.f);msg('');xmsg(lines.length+' baris ditempel ke tabel.')});
 let clr=0;$('btnClear').onclick=()=>{const b=$('btnClear');if(!clr){b.textContent='Yakin? Klik lagi untuk mengosongkan';clr=setTimeout(()=>{clr=0;b.textContent='Kosongkan daftar'},3500);return}clearTimeout(clr);clr=0;b.textContent='Kosongkan daftar';st.rows=[];st.sel=0;renderList();touch()};
 
-function parseHasil(t){t=(t||'').toLowerCase().trim();if(!t||/peserta|partisipan/.test(t))return'Peserta';const n=(t.match(/[1-3]/)||[])[0];if(!n)return'Peserta';return /harapan/.test(t)?'Juara Harapan '+n:'Juara '+n}
+/** Hasil baku (Juara 1, Juara Harapan 2, Peserta) dirapikan; teks lain (mis. "Juara Umum", "Pesilat Terbaik") dibiarkan apa adanya. */
+function normHasil(t){const raw=String(t||'').replace(/\s+/g,' ').trim().slice(0,60),l=raw.toLowerCase();
+  if(!l||/^(peserta|partisipan|-)$/.test(l))return'Peserta';
+  const m=l.match(/^(?:juara\s*)?(harapan\s*)?(\d{1,2})$/);if(m)return'Juara '+(m[1]?'Harapan ':'')+m[2];
+  return raw}
+function parseHasil(t){return normHasil(t)}
 function parseKat(t){t=(t||'').toLowerCase();return /putri|wanita|perempuan/.test(t)?'Putri':/putra|laki/.test(t)?'Putra':''}
 function colRole(t){t=String(t||'').toLowerCase().trim();if(!t)return'';if(/kategori\s*kelas|kelas\s*tanding|kelas\s*kategori|kelas\s*berat/.test(t))return'kk';if(/(^|\s)sd(\s|$)|sd\s*kelas|kelas\s*sd|^kelas$/.test(t))return'sd';if(/desa|kontingen|asal|ranting|unit/.test(t))return'd';if(/nama/.test(t))return'n';if(/hasil|juara|prestasi|peringkat|keterangan/.test(t))return'h';if(/putra|putri|jenis|gender|kategori/.test(t))return'k';return''}
 function headerMap(cells){const m={};cells.forEach((v,i)=>{const r=colRole(v);if(r&&m[r]==null)m[r]=i});
@@ -324,7 +330,7 @@ async function buildXlsx(rows){
     const row=ws.getRow(i);
     if(i>rows.length+1)row.getCell(1).value={formula:`IF(B${i}="","",ROW()-1)`};
     row.getCell(1).alignment={horizontal:'center'};
-    const vH={type:'list',allowBlank:true,formulae:['"'+HASIL.join(',')+'"'],showErrorMessage:true,errorTitle:'Hasil tidak dikenal',error:'Pilih dari daftar: Juara 1–3, Juara Harapan 1–3, atau Peserta.'};
+    const vH={type:'list',allowBlank:true,formulae:['"'+HASIL.join(',')+'"'],showErrorMessage:false};
     if(isD){row.getCell(3).dataValidation=vH;row.getCell(4).dataValidation={type:'list',allowBlank:true,formulae:['"Putra,Putri"'],showErrorMessage:true,errorTitle:'Kategori tidak dikenal',error:'Pilih Putra atau Putri.'}}
     else{row.getCell(4).numFmt='@';row.getCell(5).numFmt='@';row.getCell(4).dataValidation={type:'list',allowBlank:true,formulae:['"1-2,3-4,5-6"'],showErrorMessage:false};row.getCell(6).dataValidation=vH}
     if(i%2)for(let c=1;c<=NC;c++)row.getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF6EFDC'}};
