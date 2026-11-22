@@ -30,11 +30,11 @@ loadCur();
 /* ---------- tampilan ---------- */
 const pv=$('pv'),pc=pv.getContext('2d');let raf=0,boxes=[],guide=false,hdl=null;
 function prevPerson(){let p=st.rows[st.sel]||(st.cfg.mode==='desa'?{n:'',h:'Juara 1',k:'Putri'}:{n:'',h:'Juara 1',k:'',d:'Sangatta Utara',sd:'1-2',kk:'A'});const el=st.layout[st.selEl];if(el&&!el.hidden&&!visible(el,p))p={...p,h:el.show==='juara'?'Juara 1':'Peserta'};return p}
-function redraw(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const sc=pv.width/1123;boxes=[];drawCert(pc,sc,prevPerson(),st.cfg,st.layout,boxes);
+function redraw(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const D=dims(st.layout),sc=pv.width/D.w;boxes=[];drawCert(pc,sc,prevPerson(),st.cfg,st.layout,boxes);
   const b=boxes[st.selEl];pc.setTransform(sc,0,0,sc,0,0);
-  if(guide){pc.setLineDash([6,4]);line(pc,561,0,561,794,'#d6336c',1.5)}
+  if(guide){pc.setLineDash([6,4]);line(pc,D.w/2,0,D.w/2,D.h,'#d6336c',1.5)}
   hdl=null;if(b){pc.setLineDash([6,4]);pc.strokeStyle='#2563eb';pc.lineWidth=2;pc.strokeRect(b.x1-5,b.y1-5,b.x2-b.x1+10,b.y2-b.y1+10);pc.setLineDash([]);
-    const r=7*1123/Math.max(1,pv.clientWidth);hdl={x:b.x2+5,y:b.y2+5,r,cx:(b.x1+b.x2)/2,cy:(b.y1+b.y2)/2};pc.fillStyle='#fff';pc.lineWidth=2*r/7;pc.fillRect(hdl.x-r,hdl.y-r,2*r,2*r);pc.strokeRect(hdl.x-r,hdl.y-r,2*r,2*r)}
+    const r=7*D.w/Math.max(1,pv.clientWidth);hdl={x:b.x2+5,y:b.y2+5,r,cx:(b.x1+b.x2)/2,cy:(b.y1+b.y2)/2};pc.fillStyle='#fff';pc.lineWidth=2*r/7;pc.fillRect(hdl.x-r,hdl.y-r,2*r,2*r);pc.strokeRect(hdl.x-r,hdl.y-r,2*r,2*r)}
   pc.setLineDash([]);pc.setTransform(1,0,0,1,0,0);pv.style.touchAction=st.selEl>=0?'none':'pan-x pan-y';
   $('evChip').textContent=st.cfg.ev;$('pvName').textContent=st.rows.length?`Sertifikat ${st.sel+1} dari ${st.rows.length}`:'Daftar masih kosong'})}
 function stats(){}
@@ -95,7 +95,7 @@ const BUILT={kejurkab:1,pasanggiri:1};
 function loadCfg(){
   $('evSel').innerHTML=Object.entries(st.ev).map(([id,e])=>`<option value="${id}"${id===st.cur?' selected':''}>${esc((id===st.cur?st.cfg:e.cfg).ev||'(tanpa nama)')}</option>`).join('')+'<option value="__baru">+ Kejuaraan baru…</option>';
   $('evName').value=st.cfg.ev;$('tempat').value=st.cfg.tempat||'';$('prefix').value=st.cfg.prefix||'';
-  document.querySelectorAll('[name=mode]').forEach(r=>r.checked=r.value===st.cfg.mode);$('btnEvDel').hidden=!!BUILT[st.cur];applyMode()}
+  document.querySelectorAll('[name=mode]').forEach(r=>r.checked=r.value===st.cfg.mode);paperUI();if(typeof layoutCanvas==='function')requestAnimationFrame(()=>layoutCanvas());$('btnEvDel').hidden=!!BUILT[st.cur];applyMode()}
 function short(ev){return String(ev||'').replace(/^KEJUARAAN\s+/i,'').replace(/\s+KATEGORI\b.*$/i,'').trim()||'Kejuaraan'}
 function renderEvTabs(){$('evTabs').innerHTML=Object.entries(st.ev).map(([id,e])=>{const c=id===st.cur?st.cfg:e.cfg;return`<button type="button" role="tab" aria-selected="${id===st.cur}" data-evtab="${id}"><b>${esc(short(c.ev))}</b><span>${c.mode==='desa'?'Per desa · putra/putri':'Perorangan'} · ${(id===st.cur?st.rows:e.rows||[]).length} data</span></button>`}).join('')}
 function applyMode(){const d=st.cfg.mode==='desa';document.body.classList.toggle('mode-desa',d);$('prefixBox').hidden=!d;
@@ -117,13 +117,20 @@ let evd=0;$('btnEvDel').onclick=()=>{const b=$('btnEvDel');if(!evd){b.textConten
 /* ---------- editor tata letak ---------- */
 const WTS=[[400,'Tipis'],[500,'Normal'],[600,'Agak tebal'],[700,'Tebal'],[800,'Sangat tebal']];
 const SHOW=[['all','Semua sertifikat'],['juara','Sertifikat juara saja'],['peserta','Sertifikat penghargaan saja']];
-const KIND={text:'Teks',image:'Gambar',ribbon:'Pita',medal:'Medali',divider:'Hiasan',rule:'Garis'};
+const KIND={text:'Teks',image:'Gambar',ribbon:'Pita',medal:'Medali',divider:'Hiasan',rule:'Garis',page:'Halaman'};
 function lmsg(t,err){const m=$('lmsg');m.textContent=t;m.style.color=err?'var(--warn)':'var(--g)'}
 const hist=[];let pendSnap=null;
 function snap(){hist.push(JSON.stringify(st.layout));if(hist.length>40)hist.shift();$('btnLUndo').disabled=false}
 let svT=0;function saveSoon(){clearTimeout(svT);svT=setTimeout(()=>{if(!save())lmsg('Tata letak belum bisa disimpan otomatis (gambar terlalu besar). Gunakan "Simpan tata letak (file)".',1)},400)}
 function elName(el){return KIND[el.type]+': '+(el.label||(el.t||'').slice(0,30))}
-function renderElSel(){$('elList').innerHTML=st.layout.map((el,i)=>`<div class="eli${i===st.selEl?' sel':''}"><input type="checkbox" data-vis="${i}"${el.hidden?'':' checked'} aria-label="Tampilkan ${esc(elName(el))}"><button type="button" data-pick="${i}">${esc(el.label||KIND[el.type])}</button><span class="tag">${KIND[el.type]}</span></div>`).join('')}
+function renderElSel(){$('elList').innerHTML=st.layout.map((el,i)=>el.type==='page'?'':`<div class="eli${i===st.selEl?' sel':''}"><input type="checkbox" data-vis="${i}"${el.hidden?'':' checked'} aria-label="Tampilkan ${esc(elName(el))}"><button type="button" data-pick="${i}">${esc(el.label||KIND[el.type])}</button><span class="tag">${KIND[el.type]}</span></div>`).join('')}
+function setPaper(np){if(!PAPER[np])return;const op=paperOf(st.layout);if(op===np)return;snap();
+  const a=PAPER[op],b=PAPER[np],dx=(b.w-a.w)/2,dy=(b.h-a.h)/2;
+  st.layout.forEach(el=>{if(el.type!=='page'){el.x=Math.round(+el.x+dx);el.y=Math.round(+el.y+dy)}});
+  const m=st.layout.find(e=>e.type==='page');if(m)m.paper=np;else st.layout.unshift({type:'page',paper:np});
+  st.selEl=-1;renderElSel();insp();paperUI();layoutCanvas();saveSoon();renderPrint();lmsg('Ukuran sertifikat '+short(st.cfg.ev)+' diubah ke '+PAPER[np].label+'. Posisi elemen ikut disesuaikan.')}
+function paperUI(){const p=paperOf(st.layout);document.querySelectorAll('[name=paper]').forEach(r=>r.checked=r.value===p);const n=$('paperNote');if(n)n.textContent=PAPER[p].label+' · mendatar'}
+document.querySelectorAll('[name=paper]').forEach(r=>r.onchange=()=>setPaper(r.value));
 function pick(i){st.selEl=i;renderElSel();insp();redraw()}
 const opt=(arr,v)=>arr.map(([a,b])=>`<option value="${a}"${String(a)===String(v)?' selected':''}>${b}</option>`).join('');
 function insp(){
@@ -163,7 +170,7 @@ $('insp').addEventListener('input',e=>{const t=e.target,k=t.dataset.k,el=st.layo
   redraw();saveSoon()});
 $('insp').addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(!a)return;const i=st.selEl,el=st.layout[i];if(!el)return;snap();
   const act=a.dataset.act;
-  if(act==='center'){el.x=561}
+  if(act==='center'){el.x=Math.round(dims(st.layout).w/2)}
   if(act==='dup'){const d=JSON.parse(JSON.stringify(el));d.x+=20;d.y+=20;d.label=(d.label||'')+' (salinan)';st.layout.splice(i+1,0,d);st.selEl=i+1}
   if(act==='del'){st.layout.splice(i,1);st.selEl=-1;lmsg('Elemen dihapus. Tekan "Urungkan" untuk mengembalikan.')}
   if(act==='front'&&i<st.layout.length-1){st.layout.splice(i,1);st.layout.push(el);st.selEl=st.layout.length-1}
@@ -173,13 +180,13 @@ $('insp').addEventListener('change',async e=>{if(e.target.id!=='imgRep')return;c
   try{const u=await readImg(f);snap();st.layout[st.selEl].src=u;redraw();saveSoon();lmsg('Gambar diganti.')}catch(err){lmsg('Gambar tidak bisa dibuka: '+(err.message||err),1)}});
 $('elList').addEventListener('click',e=>{const b=e.target.closest('[data-pick]');if(b)pick(+b.dataset.pick)});
 $('elList').addEventListener('change',e=>{const c=e.target.closest('[data-vis]');if(!c)return;snap();st.layout[+c.dataset.vis].hidden=!c.checked;redraw();saveSoon()});
-$('btnAddText').onclick=()=>{snap();st.layout.push(T({label:'Teks baru',t:'Teks baru',x:561,y:397,s:28,w:700}));pick(st.layout.length-1);saveSoon();const ta=$('insp').querySelector('textarea');if(ta){ta.focus();ta.select()}};
+$('btnAddText').onclick=()=>{snap();st.layout.push(T({label:'Teks baru',t:'Teks baru',x:Math.round(dims(st.layout).w/2),y:Math.round(dims(st.layout).h/2),s:28,w:700}));pick(st.layout.length-1);saveSoon();const ta=$('insp').querySelector('textarea');if(ta){ta.focus();ta.select()}};
 function readImg(file){return new Promise((res,rej)=>{if(!/^image\//.test(file.type)){rej(new Error('file bukan gambar'));return}
   const r=new FileReader();r.onerror=()=>rej(new Error('file tidak terbaca'));r.onload=()=>{const im=new Image();im.onerror=()=>rej(new Error('format gambar tidak didukung'));
   im.onload=()=>{const m=1000,k=Math.min(1,m/Math.max(im.naturalWidth||m,im.naturalHeight||m));const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round((im.naturalWidth||m)*k));cv.height=Math.max(1,Math.round((im.naturalHeight||m)*k));cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);res(cv.toDataURL(file.type==='image/jpeg'?'image/jpeg':'image/png',.9))};im.src=r.result};r.readAsDataURL(file)})}
 $('imgAdd').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
-  try{const u=await readImg(f);snap();st.layout.push({type:'image',label:f.name.replace(/\.[^.]+$/,''),src:u,x:561,y:397,w:160,op:1,show:'all'});pick(st.layout.length-1);saveSoon();lmsg('Gambar ditambahkan di tengah. Geser ke posisi yang diinginkan.')}catch(err){lmsg('Gambar tidak bisa dibuka: '+(err.message||err),1)}};
-$('btnLUndo').onclick=()=>{if(!hist.length)return;st.layout=JSON.parse(hist.pop());if(st.selEl>=st.layout.length)st.selEl=-1;$('btnLUndo').disabled=!hist.length;renderElSel();insp();loadFonts(st.layout).then(redraw);redraw();saveSoon()};
+  try{const u=await readImg(f);snap();st.layout.push({type:'image',label:f.name.replace(/\.[^.]+$/,''),src:u,x:Math.round(dims(st.layout).w/2),y:Math.round(dims(st.layout).h/2),w:160,op:1,show:'all'});pick(st.layout.length-1);saveSoon();lmsg('Gambar ditambahkan di tengah. Geser ke posisi yang diinginkan.')}catch(err){lmsg('Gambar tidak bisa dibuka: '+(err.message||err),1)}};
+$('btnLUndo').onclick=()=>{if(!hist.length)return;st.layout=JSON.parse(hist.pop());if(st.selEl>=st.layout.length)st.selEl=-1;$('btnLUndo').disabled=!hist.length;renderElSel();insp();paperUI();layoutCanvas();loadFonts(st.layout).then(redraw);redraw();saveSoon()};
 let rst=0;$('btnLReset').onclick=()=>{const b=$('btnLReset');if(!rst){b.textContent='Yakin? Klik lagi untuk mengembalikan';rst=setTimeout(()=>{rst=0;b.textContent='Kembalikan tata letak awal'},3500);return}
   clearTimeout(rst);rst=0;b.textContent='Kembalikan tata letak awal';snap();st.layout=defaultLayout(st.cfg,st.cfg.mode);st.selEl=-1;renderElSel();insp();redraw();saveSoon();lmsg('Tata letak dikembalikan ke awal. Tekan "Urungkan" bila berubah pikiran.')};
 $('btnLSave').onclick=async()=>{const r=await saveFile('Tata letak sertifikat ASAD.json',new Blob([JSON.stringify({app:'sertifikat-asad',v:1,layout:st.layout})]));lmsg(r===true?'Tata letak tersimpan sebagai file.':r,r!==true)};
@@ -189,7 +196,7 @@ $('layFile').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!
 
 /* geser di pratinjau */
 let drag=null;
-function toCert(e){const r=pv.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*1123,y:(e.clientY-r.top)/r.height*794}}
+function toCert(e){const r=pv.getBoundingClientRect(),D=dims(st.layout);return{x:(e.clientX-r.left)/r.width*D.w,y:(e.clientY-r.top)/r.height*D.h}}
 function hit(pt){for(let i=boxes.length-1;i>=0;i--){const b=boxes[i];if(b&&pt.x>=b.x1-4&&pt.x<=b.x2+4&&pt.y>=b.y1-4&&pt.y<=b.y2+4)return i}return -1}
 function syncXY(){const el=st.layout[st.selEl];if(!el)return;$('insp').querySelectorAll('[data-k=x],[data-k=y]').forEach(i=>i.value=Math.round(el[i.dataset.k]))}
 pv.addEventListener('pointerdown',e=>{const pt=toCert(e);
@@ -201,7 +208,7 @@ pv.addEventListener('pointermove',e=>{const pt=toCert(e);
   if(drag.mode==='rs'){const el=st.layout[st.selEl],f=Math.max(.1,Math.hypot(pt.x-drag.cx,pt.y-drag.cy)/drag.d0),o=drag.s0;
     if(el.type==='text'){el.s=Math.max(6,Math.min(200,Math.round(o.s*f)));if(+o.maxW)el.maxW=Math.round(o.maxW*f);if(+o.sp)el.sp=Math.round(o.sp*f*10)/10}
     else el.w=Math.max(10,Math.min(2000,Math.round(o.w*f)));drag.moved=true;redraw();return}
-  const el=st.layout[st.selEl];let nx=pt.x-drag.dx,ny=pt.y-drag.dy;guide=Math.abs(nx-561)<6;if(guide)nx=561;
+  const el=st.layout[st.selEl];let nx=pt.x-drag.dx,ny=pt.y-drag.dy;const cx=dims(st.layout).w/2;guide=Math.abs(nx-cx)<6;if(guide)nx=cx;
   el.x=Math.round(nx);el.y=Math.round(ny);drag.moved=true;syncXY();redraw()});
 const endDrag=()=>{if(!drag)return;if(!drag.moved){hist.pop();$('btnLUndo').disabled=!hist.length}const rs=drag.mode==='rs'&&drag.moved;drag=null;guide=false;if(rs)insp();redraw();saveSoon()};
 pv.addEventListener('pointerup',endDrag);pv.addEventListener('pointercancel',endDrag);
@@ -210,9 +217,9 @@ pv.addEventListener('keydown',e=>{const el=st.layout[st.selEl];const d={ArrowLef
 
 /* ---------- perbesar pratinjau ---------- */
 const STEPS=[1,1.25,1.5,2,2.5,3,4];let zoom=1;const zw=$('zw');
-function layoutCanvas(){if(!zw.clientWidth)return;const pad=zw.clientWidth<600?16:28,W=zw.clientWidth-pad,H=zw.clientHeight-pad;const fit=Math.max(240,H>120?Math.min(W,H*1123/794):W);
-  pv.style.width=Math.round(fit*zoom)+'px';const R=Math.round(Math.min(3400,Math.max(1123,fit*zoom*Math.min(2,window.devicePixelRatio||1))));
-  if(Math.abs(pv.width-R)>8){pv.width=R;pv.height=Math.round(R*794/1123)}redraw()}
+function layoutCanvas(){if(!zw.clientWidth)return;const D=dims(st.layout),pad=zw.clientWidth<600?16:28,W=zw.clientWidth-pad,H=zw.clientHeight-pad;const fit=Math.max(240,H>120?Math.min(W,H*D.w/D.h):W);
+  pv.style.aspectRatio=D.w+'/'+D.h;pv.style.width=Math.round(fit*zoom)+'px';const R=Math.round(Math.min(3400,Math.max(D.w,fit*zoom*Math.min(2,window.devicePixelRatio||1))));
+  if(Math.abs(pv.width-R)>8||Math.abs(pv.height-Math.round(R*D.h/D.w))>2){pv.width=R;pv.height=Math.round(R*D.h/D.w)}redraw()}
 function setZoom(z){const cx=(zw.scrollLeft+zw.clientWidth/2)/zw.scrollWidth,cy=(zw.scrollTop+zw.clientHeight/2)/zw.scrollHeight;
   zoom=Math.min(4,Math.max(1,z));layoutCanvas();$('zFit').textContent=Math.round(zoom*100)+'%';$('zOut').disabled=zoom<=1;$('zIn').disabled=zoom>=4;
   zw.scrollLeft=cx*zw.scrollWidth-zw.clientWidth/2;zw.scrollTop=cy*zw.scrollHeight-zw.clientHeight/2}
@@ -252,11 +259,12 @@ function pState(){syncCur();const id=st.cur,e=st.ev[id],cfg={...DEF,...e.cfg},is
   return{id,e,cfg,isD,rows,f,sds,desas,list:selRows(rows,f)}}
 function renderPrint(){const box=$('printPanel');if(!box||!st.ev||$('v-cetak').hidden)return;const P=pState(),{cfg,isD,f,sds,desas,list}=P,suf=suffix(f,{});
   box.innerHTML=`<label class="lbl3">Kejuaraan</label>${segc('pev',Object.keys(st.ev).map(id=>[id,esc(short((id===st.cur?st.cfg:st.ev[id].cfg).ev))]),st.cur,'Kejuaraan')}
+<label class="lbl3">Ukuran kertas</label>${segc('ppaper',[['A4','A4'],['F4','F4']],paperOf(st.layout),'Ukuran kertas')}
 <label class="lbl3">Yang dicetak</label>${segc('pf',[['all','Semua'],['juara','Juara'],['peserta','Penghargaan']],f.f,'Yang dicetak')}
 ${isD?`<label class="lbl3">Putra / putri</label>${segc('pk',[['Putra','Putra'],['Putri','Putri'],['','Putra &amp; Putri']],f.k,'Putra atau putri')}`
 :`${sds.length?`<label class="lbl3">SD kelas</label>${segc('psd',[['','Semua'],...sds.map(x=>[x,esc(x)])],f.sd,'SD kelas')}`:''}${desas.length?`<label class="lbl3" for="pd">Desa</label><select id="pd"><option value="">Semua desa</option>${desas.map(x=>`<option${x===f.d?' selected':''}>${esc(x)}</option>`).join('')}</select>`:''}`}
-<div class="infobox"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>${list.length?`Satu ${isD?'desa':'nama'} = satu halaman A4 mendatar. Saat mencetak PDF pilih kertas A4, Landscape, margin None, skala 100%.`:`Belum ada data untuk pilihan ini. Isi dulu di halaman Peserta.`}</span></div>
-<p class="pcount2"><b>${list.length}</b> sertifikat ${esc(short(cfg.ev))}${suf?' · '+esc(suf):''}</p>
+<div class="infobox"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>${list.length?`Satu ${isD?'desa':'nama'} = satu halaman ${PAPER[paperOf(st.layout)].label}, mendatar. Saat mencetak PDF pilih kertas ${paperOf(st.layout)}, Landscape, margin None, skala 100%.`:`Belum ada data untuk pilihan ini. Isi dulu di halaman Peserta.`}</span></div>
+<p class="pcount2"><b>${list.length}</b> sertifikat ${esc(short(cfg.ev))}${suf?' · '+esc(suf):''} · kertas ${paperOf(st.layout)}</p>
 <button type="button" class="bigbtn" id="pPdf"${list.length&&dlOK?'':' disabled'}><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 8V3h10v5"/><rect x="3" y="8" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/></svg>Unduh PDF</button>
 ${window.claude?'':`<button type="button" class="ghost wide" id="pPrn"${list.length?'':' disabled'}>Cetak langsung</button>`}
 <div id="msg" role="status"></div>`;
@@ -267,27 +275,30 @@ function drawPrintPreview(){const c=$('pCanvas');if(!c)return;const P=pState(),{
   $('pInfo').textContent=list.length?`sertifikat ${pIdx+1} dari ${list.length}`:'contoh tampilan';
   $('pName').textContent=list.length?`${p.n||'(tanpa nama)'} — ${p.h}${p.k?' '+p.k:''}${p.sd?' · SD Kelas '+p.sd:''}${p.kk?' · Kelas '+p.kk:''}`:'';
   $('pPrev').disabled=pIdx<=0;$('pNext').disabled=pIdx>=list.length-1;
-  const R=Math.round(Math.min(3400,Math.max(1123,c.clientWidth*Math.min(2,window.devicePixelRatio||1))));if(Math.abs(c.width-R)>8){c.width=R;c.height=Math.round(R*794/1123)}
-  loadFonts(e.layout).then(()=>drawCert(c.getContext('2d'),c.width/1123,p,cfg,e.layout));drawCert(c.getContext('2d'),c.width/1123,p,cfg,e.layout)}
+  const D=dims(e.layout);c.style.aspectRatio=D.w+'/'+D.h;
+  const R=Math.round(Math.min(3400,Math.max(D.w,c.clientWidth*Math.min(2,window.devicePixelRatio||1))));if(Math.abs(c.width-R)>8||Math.abs(c.height-Math.round(R*D.h/D.w))>2){c.width=R;c.height=Math.round(R*D.h/D.w)}
+  loadFonts(e.layout).then(()=>drawCert(c.getContext('2d'),c.width/D.w,p,cfg,e.layout));drawCert(c.getContext('2d'),c.width/D.w,p,cfg,e.layout)}
 function suffix(f,over){const g={...f,...over};return[g.sd?'SD Kelas '+g.sd:'',g.d||'',g.k||'',g.f==='juara'?'Juara':g.f==='peserta'?'Penghargaan':''].filter(Boolean).join(' - ')}
-async function pages(list,each,layout,cfg){await loadFonts(layout);const cv=document.createElement('canvas');cv.width=2246;cv.height=1588;const c=cv.getContext('2d');
+async function pages(list,each,layout,cfg){await loadFonts(layout);const D=dims(layout);const cv=document.createElement('canvas');cv.width=D.w*2;cv.height=D.h*2;const c=cv.getContext('2d');
   for(let i=0;i<list.length;i++){drawCert(c,2,list[i],cfg,layout);await each(cv.toDataURL('image/jpeg',.88),i);msg(`Menyiapkan sertifikat ${i+1} dari ${list.length}…`);await new Promise(r=>setTimeout(r,0))}}
 async function doPdf(ed,list,suf,b){if(!list.length){msg('Tidak ada sertifikat untuk pilihan ini.',1);return false}
   try{await loadLib('jspdf')}catch(e){msg(e.message,1);return false}
   b.disabled=true;
-  try{await ready;const doc=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4',compress:true});
-    await pages(list,(u,i)=>{if(i)doc.addPage('a4','landscape');doc.addImage(u,'JPEG',0,0,297,210,undefined,'FAST')},ed.layout,ed.cfg);
-    const name=('Sertifikat '+short(ed.cfg.ev)+(suf?' - '+suf:'')+' ('+list.length+' nama).pdf').replace(/[\\/:*?"<>|]/g,'');
+  try{await ready;const D=dims(ed.layout),mm=D.mm;const doc=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:[mm[0],mm[1]],compress:true});
+    await pages(list,(u,i)=>{if(i)doc.addPage([mm[0],mm[1]],'landscape');doc.addImage(u,'JPEG',0,0,mm[0],mm[1],undefined,'FAST')},ed.layout,ed.cfg);
+    const name=('Sertifikat '+short(ed.cfg.ev)+(suf?' - '+suf:'')+(paperOf(ed.layout)==='F4'?' - F4':'')+' ('+list.length+' nama).pdf').replace(/[\\/:*?"<>|]/g,'');
     const r=await saveFile(name,doc.output('blob'));msg(r===true?'PDF tersimpan: '+name:r,r!==true);return r}
   catch(err){msg('Gagal membuat PDF: '+(err.message||err),1);return false}finally{b.disabled=false}}
 $('printPanel').addEventListener('change',e=>{const t=e.target,P=pState(),f=P.f;
   if(t.name==='pev'){switchEv(t.value);pIdx=0;renderPrint();return}
+  if(t.name==='ppaper'){setPaper(t.value);renderPrint();return}
   if(t.name==='pf')f.f=t.value;else if(t.name==='pk')f.k=t.value;else if(t.name==='psd')f.sd=t.value;else if(t.id==='pd')f.d=t.value;else return;
   pIdx=0;renderPrint()});
 $('printPanel').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;const P=pState(),ed=evData(P.id);
   if(b.id==='pPdf')await doPdf(ed,P.list,suffix(P.f,{}),b);
   else if(b.id==='pPrn'){const list=P.list;if(!list.length)return;b.disabled=true;const pa=$('printArea');pa.innerHTML='';await ready;await pages(list,u=>{const im=new Image();im.src=u;im.alt='';pa.appendChild(im)},ed.layout,ed.cfg);
-    await Promise.all([...pa.images].map(i=>i.decode().catch(()=>{})));msg('Membuka jendela cetak…');b.disabled=false;window.print()}});
+    await Promise.all([...pa.images].map(i=>i.decode().catch(()=>{})));setPrintPage(ed.layout);msg('Membuka jendela cetak…');b.disabled=false;window.print()}});
+function setPrintPage(layout){const mm=dims(layout).mm;let el=document.getElementById('pageStyle');if(!el){el=document.createElement('style');el.id='pageStyle';document.head.appendChild(el)}el.textContent=`@media print{@page{size:${mm[0]}mm ${mm[1]}mm;margin:0}#printArea img{width:${mm[0]}mm!important;height:${mm[1]-0.1}mm!important}}`}
 $('pPrev').onclick=()=>{if(pIdx>0){pIdx--;drawPrintPreview()}};$('pNext').onclick=()=>{pIdx++;drawPrintPreview()};
 document.addEventListener('keydown',e=>{if($('v-cetak').hidden||/INPUT|SELECT|TEXTAREA/.test((e.target||{}).tagName||''))return;if(e.key==='ArrowRight')$('pNext').click();if(e.key==='ArrowLeft')$('pPrev').click()});
 new ResizeObserver(()=>{if(!$('v-cetak').hidden)drawPrintPreview()}).observe($('pCanvas'));

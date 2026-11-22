@@ -11,7 +11,10 @@ function img(src) {
   return imgCache[u];
 }
 
-/* ---------- menggambar sertifikat (koordinat 1123×794 px = A4 landscape) ---------- */
+/* ---------- menggambar sertifikat (koordinat px 96 dpi: A4 1123×794, F4 1247×813, mendatar) ---------- */
+const PAPER={A4:{w:1123,h:794,mm:[297,210],label:'A4 · 297 × 210 mm'},F4:{w:1247,h:813,mm:[330,215],label:'F4 · 330 × 215 mm'}};
+function paperOf(layout){const m=(layout||[]).find(e=>e&&e.type==='page');return m&&PAPER[m.paper]?m.paper:'A4'}
+function dims(layout){return PAPER[paperOf(layout)]}
 const G='#1f4d2e',DK='#163a22',GOLD='#b8913a',CREAM='#f6efdc';
 const FONTS=['Montserrat','Poppins','Playfair Display','Cinzel','Merriweather','Oswald','Great Vibes','Times New Roman','Arial'];
 function fnt(el,w,s){return (el.it?'italic ':'')+w+' '+s+'px "'+el.font+'", Arial, sans-serif'}
@@ -85,13 +88,14 @@ function drawEl(c,el,p,cfg){
 }
 const visible=(el,p)=>!el.hidden&&(!el.show||el.show==='all'||(el.show==='juara')===(p.h!=='Peserta'));
 function drawCert(c,sc,p,cfg,layout,boxes){
+  const {w:W,h:H}=dims(layout);
   c.setTransform(sc,0,0,sc,0,0);
-  c.fillStyle=CREAM;c.fillRect(0,0,1123,794);
+  c.fillStyle=CREAM;c.fillRect(0,0,W,H);
   poly(c,[0,0,190,0,0,330],G);poly(c,[0,0,110,0,0,190],DK);line(c,214,0,0,372,GOLD,3);
-  poly(c,[933,0,1123,0,1123,240],G);poly(c,[1023,0,1123,0,1123,130],DK);line(c,909,0,1123,278,GOLD,3);
-  poly(c,[0,600,0,794,194,794],G);poly(c,[0,680,0,794,114,794],DK);line(c,0,580,214,794,GOLD,3);
-  poly(c,[1123,600,1123,794,929,794],G);poly(c,[1123,680,1123,794,1009,794],DK);line(c,1123,580,909,794,GOLD,3);
-  c.strokeStyle=GOLD;c.lineWidth=2.5;c.strokeRect(34,34,1055,726);c.strokeStyle='#d9b968';c.lineWidth=1;c.strokeRect(43,43,1037,708);
+  poly(c,[W-190,0,W,0,W,240],G);poly(c,[W-100,0,W,0,W,130],DK);line(c,W-214,0,W,278,GOLD,3);
+  poly(c,[0,H-194,0,H,194,H],G);poly(c,[0,H-114,0,H,114,H],DK);line(c,0,H-214,214,H,GOLD,3);
+  poly(c,[W,H-194,W,H,W-194,H],G);poly(c,[W,H-114,W,H,W-114,H],DK);line(c,W,H-214,W-214,H,GOLD,3);
+  c.strokeStyle=GOLD;c.lineWidth=2.5;c.strokeRect(34,34,W-68,H-68);c.strokeStyle='#d9b968';c.lineWidth=1;c.strokeRect(43,43,W-86,H-86);
   layout.forEach((el,i)=>{const b=visible(el,p)?drawEl(c,el,p,cfg):null;if(boxes)boxes[i]=b});
   c.setTransform(1,0,0,1,0,0);
 }
