@@ -43,15 +43,15 @@ function renderList(){
   const isD=st.cfg.mode==='desa',who=isD?'desa':'peserta';$('list').classList.toggle('desa',isD);
   $('rowCount').textContent=st.rows.length+' '+who;
   const hs=(r,i)=>`<td class="hcell w-h"><input data-f="h" list="dlH" value="${esc(r.h||'Peserta')}" aria-label="Hasil ${who} ${i+1} (pilih atau ketik)" placeholder="Peserta" autocomplete="off"></td>`;
-  const head=isD?'<tr><th>No</th><th>Nama Desa</th><th>Hasil</th><th>Putra / Putri</th><th><span class="vh">Hapus</span></th></tr>'
-    :'<tr><th>No</th><th>Nama Peserta</th><th>Desa</th><th>SD Kelas</th><th>Kategori Kelas</th><th>Hasil</th><th><span class="vh">Hapus</span></th></tr>';
+  const head=isD?'<tr><th>No</th><th>Nama Desa</th><th>Hasil</th><th>Putra / Putri</th><th class="act"><span class="vh">Cetak / hapus</span></th></tr>'
+    :'<tr><th>No</th><th>Nama Peserta</th><th>Desa</th><th>SD Kelas</th><th>Kategori Kelas</th><th>Hasil</th><th class="act"><span class="vh">Cetak / hapus</span></th></tr>';
   const body=st.rows.map((r,i)=>`<tr class="item${i===st.sel?' sel':''}${r.h!=='Peserta'?' juara':''}" data-i="${i}"><td class="no">${i+1}</td>
 <td><input data-f="n" value="${esc(r.n)}" aria-label="Nama ${who} ${i+1}" placeholder="${isD?'Nama desa':'Nama peserta'}"></td>
 ${isD?hs(r,i)+`<td class="w-k"><select data-f="k" aria-label="Putra atau putri, desa ${i+1}">${KAT.map(k=>`<option value="${k}"${k===r.k?' selected':''}>${k||'—'}</option>`).join('')}</select></td>`
 :`<td class="w-d"><input data-f="d" list="dlD" value="${esc(r.d||'')}" aria-label="Desa peserta ${i+1}"></td>
 <td class="w-sd"><input data-f="sd" list="dlSD" value="${esc(r.sd||'')}" aria-label="SD kelas peserta ${i+1}"></td>
 <td class="w-kk"><input data-f="kk" list="dlKK" value="${esc(r.kk||'')}" aria-label="Kategori kelas peserta ${i+1}"></td>`+hs(r,i)}
-<td class="del"><button type="button" data-del="${i}" aria-label="Hapus baris ${i+1}" title="Hapus baris">✕</button></td></tr>`).join('');
+<td class="del"><button type="button" class="prn1" data-prn="${i}" aria-label="Cetak sertifikat ${esc(r.n||'baris '+(i+1))}" title="Cetak sertifikat nama ini"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 8V3h10v5"/><rect x="3" y="8" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/></svg></button><button type="button" data-del="${i}" aria-label="Hapus baris ${i+1}" title="Hapus baris">✕</button></td></tr>`).join('');
   $('list').innerHTML=`<thead>${head}</thead><tbody>${body||`<tr><td colspan="${isD?5:7}" style="padding:16px;color:var(--mut)">Belum ada ${who}. Klik "+ Tambah baris", unggah Excel, atau tempel data ke sini.</td></tr>`}</tbody>`;
   stats();renderWho();renderPrint();if(st.ev)renderEvTabs();
 }
@@ -59,7 +59,7 @@ function touch(){if(st.sample){st.sample=false}stats();save();redraw()}
 $('list').addEventListener('input',e=>{const it=e.target.closest('.item');if(!it)return;const i=+it.dataset.i;st.rows[i][e.target.dataset.f]=e.target.value;st.sel=i;touch();renderWho()});
 $('list').addEventListener('focusin',e=>{const it=e.target.closest('.item');if(!it)return;const i=+it.dataset.i;if(i!==st.sel){st.sel=i;document.querySelectorAll('.item').forEach(x=>x.classList.toggle('sel',+x.dataset.i===i));$('pvWho').value=i;redraw()}});
 let lastDel=null;
-$('list').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;const i=+b.dataset.del;lastDel={i,r:st.rows[i]};st.rows.splice(i,1);st.sel=Math.max(0,Math.min(st.sel,st.rows.length-1));$('btnUndo').hidden=false;renderList();touch()});
+$('list').addEventListener('click',e=>{const p=e.target.closest('[data-prn]');if(p){printOne(+p.dataset.prn);return}const b=e.target.closest('[data-del]');if(!b)return;const i=+b.dataset.del;lastDel={i,r:st.rows[i]};st.rows.splice(i,1);st.sel=Math.max(0,Math.min(st.sel,st.rows.length-1));$('btnUndo').hidden=false;renderList();touch()});
 $('btnUndo').onclick=()=>{if(!lastDel)return;st.rows.splice(lastDel.i,0,lastDel.r);st.sel=lastDel.i;lastDel=null;$('btnUndo').hidden=true;renderList();touch()};
 $('list').addEventListener('change',e=>{const t=e.target;if(t.dataset.f!=='h')return;const tr=t.closest('tr');const v=normHasil(t.value);if(v!==t.value){t.value=v;const i=+tr.dataset.i;if(st.rows[i]){st.rows[i].h=v;touch()}}if(tr)tr.classList.toggle('juara',v!=='Peserta')});
 $('list').addEventListener('focusin',e=>{const t=e.target;if(t.dataset&&t.dataset.f==='h'&&t.value==='Peserta')t.select()});
@@ -260,21 +260,27 @@ let dlOK=true;
 const PF={};let pIdx=0;
 const segc=(name,opts,val,lbl)=>`<div class="segc" role="radiogroup" aria-label="${lbl}">${opts.map(([v,l])=>`<label><input type="radio" name="${name}" value="${esc(v)}"${v===val?' checked':''}><span>${l}</span></label>`).join('')}</div>`;
 function pState(){syncCur();const id=st.cur,e=st.ev[id],cfg={...DEF,...e.cfg},isD=cfg.mode==='desa',rows=e.rows||[];
-  const f=PF[id]=PF[id]||{f:'all',d:'',sd:'',k:''};const sds=isD?[]:uniq(rows,'sd'),desas=isD?[]:uniq(rows,'d');
+  const f=PF[id]=PF[id]||{f:'all',d:'',sd:'',k:'',one:-1};const sds=isD?[]:uniq(rows,'sd'),desas=isD?[]:uniq(rows,'d');
   if(f.sd&&!sds.includes(f.sd))f.sd='';if(f.d&&!desas.includes(f.d))f.d='';
-  return{id,e,cfg,isD,rows,f,sds,desas,list:selRows(rows,f)}}
+  const list=selRows(rows,f),one=f.one>=0&&list.includes(rows[f.one])?rows[f.one]:null;if(!one)f.one=-1;
+  return{id,e,cfg,isD,rows,f,sds,desas,list,one,out:one?[one]:list}}
+const whoLbl=(r,isD)=>(r.n||'(tanpa nama)')+(isD&&r.k?' '+r.k:'');
+function oneSuffix(r,isD){return[whoLbl(r,isD),r.h].filter(Boolean).join(' - ')}
+function printOne(i){syncCur();const id=st.cur,f=PF[id]=PF[id]||{};Object.assign(f,{f:'all',d:'',sd:'',k:'',one:i});pIdx=0;show('cetak')}
 function renderPrint(){const box=$('printPanel');if(!box||!st.ev||$('v-cetak').hidden)return;const P=pState(),{cfg,isD,f,sds,desas,list}=P,suf=suffix(f,{});
   box.innerHTML=`<label class="lbl3">Kejuaraan</label>${segc('pev',Object.keys(st.ev).map(id=>[id,esc(short((id===st.cur?st.cfg:st.ev[id].cfg).ev))]),st.cur,'Kejuaraan')}
 <label class="lbl3">Ukuran kertas</label>${segc('ppaper',[['A4','A4'],['F4','F4']],paperOf(st.layout),'Ukuran kertas')}
 <label class="lbl3">Yang dicetak</label>${segc('pf',[['all','Semua'],['juara','Juara'],['peserta','Penghargaan']],f.f,'Yang dicetak')}
 ${isD?`<label class="lbl3">Putra / putri</label>${segc('pk',[['Putra','Putra'],['Putri','Putri'],['','Putra &amp; Putri']],f.k,'Putra atau putri')}`
 :`${sds.length?`<label class="lbl3">SD kelas</label>${segc('psd',[['','Semua'],...sds.map(x=>[x,esc(x)])],f.sd,'SD kelas')}`:''}${desas.length?`<label class="lbl3" for="pd">Desa</label><select id="pd"><option value="">Semua desa</option>${desas.map(x=>`<option${x===f.d?' selected':''}>${esc(x)}</option>`).join('')}</select>`:''}`}
+${list.length?`<label class="lbl3" for="pOne">Nama yang dicetak</label><select id="pOne"><option value="-1">Semua nama di atas (${list.length})</option>${list.map(r=>{const i=P.rows.indexOf(r);return`<option value="${i}"${i===f.one?' selected':''}>${esc(whoLbl(r,isD))} — ${esc(r.h)}</option>`}).join('')}</select>`:''}
 <div class="infobox"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>${list.length?`Satu ${isD?'desa':'nama'} = satu halaman ${PAPER[paperOf(st.layout)].label}, mendatar. Saat mencetak PDF pilih kertas ${paperOf(st.layout)}, Landscape, margin None, skala 100%.`:`Belum ada data untuk pilihan ini. Isi dulu di halaman Peserta.`}</span></div>
-<p class="pcount2"><b>${list.length}</b> sertifikat ${esc(short(cfg.ev))}${suf?' · '+esc(suf):''} · kertas ${paperOf(st.layout)}</p>
-<button type="button" class="bigbtn" id="pPdf"${list.length&&dlOK?'':' disabled'}><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 8V3h10v5"/><rect x="3" y="8" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/></svg>Unduh PDF</button>
-${window.claude?'':`<button type="button" class="ghost wide" id="pPrn"${list.length?'':' disabled'}>Cetak langsung</button>`}
+<p class="pcount2">${P.one?`<b>1</b> sertifikat · ${esc(whoLbl(P.one,isD))}`:`<b>${list.length}</b> sertifikat ${esc(short(cfg.ev))}${suf?' · '+esc(suf):''}`} · kertas ${paperOf(st.layout)}</p>
+<button type="button" class="bigbtn" id="pPdf"${list.length&&dlOK?'':' disabled'}><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 8V3h10v5"/><rect x="3" y="8" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/></svg>${P.one?'Unduh PDF nama ini':'Unduh PDF'}</button>
+${list.length&&!P.one?`<button type="button" class="ghost wide" id="pPdf1"${dlOK?'':' disabled'}>Unduh yang tampil di pratinjau saja</button>`:''}
+${window.claude?'':`<button type="button" class="ghost wide" id="pPrn"${list.length?'':' disabled'}>${P.one?'Cetak nama ini':'Cetak langsung'}</button>`}
 <div id="msg" role="status"></div>`;
-  pIdx=Math.min(pIdx,Math.max(0,list.length-1));drawPrintPreview()}
+  if(P.one)pIdx=list.indexOf(P.one);pIdx=Math.min(pIdx,Math.max(0,list.length-1));drawPrintPreview()}
 function drawPrintPreview(){const c=$('pCanvas');if(!c)return;const P=pState(),{e,cfg,isD,list}=P;
   const ex=isD?{n:'Contoh Desa',h:'Juara 1',k:'Putri'}:{n:'Contoh Peserta',h:'Juara 1',k:'',d:'Sangatta Utara',sd:'1-2',kk:'A'};
   const p=list[pIdx]||ex;
@@ -292,20 +298,22 @@ async function doPdf(ed,list,suf,b){if(!list.length){msg('Tidak ada sertifikat u
   b.disabled=true;
   try{await ready;const D=dims(ed.layout),mm=D.mm;const doc=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:[mm[0],mm[1]],compress:true});
     await pages(list,(u,i)=>{if(i)doc.addPage([mm[0],mm[1]],'landscape');doc.addImage(u,'JPEG',0,0,mm[0],mm[1],undefined,'FAST')},ed.layout,ed.cfg);
-    const name=('Sertifikat '+short(ed.cfg.ev)+(suf?' - '+suf:'')+(paperOf(ed.layout)==='F4'?' - F4':'')+' ('+list.length+' nama).pdf').replace(/[\\/:*?"<>|]/g,'');
+    const name=('Sertifikat '+short(ed.cfg.ev)+(suf?' - '+suf:'')+(paperOf(ed.layout)==='F4'?' - F4':'')+(list.length>1?' ('+list.length+' nama)':'')+'.pdf').replace(/[\\/:*?"<>|]/g,'');
     const r=await saveFile(name,doc.output('blob'));msg(r===true?'PDF tersimpan: '+name:r,r!==true);return r}
   catch(err){msg('Gagal membuat PDF: '+(err.message||err),1);return false}finally{b.disabled=false}}
 $('printPanel').addEventListener('change',e=>{const t=e.target,P=pState(),f=P.f;
   if(t.name==='pev'){switchEv(t.value);pIdx=0;renderPrint();return}
   if(t.name==='ppaper'){setPaper(t.value);renderPrint();return}
-  if(t.name==='pf')f.f=t.value;else if(t.name==='pk')f.k=t.value;else if(t.name==='psd')f.sd=t.value;else if(t.id==='pd')f.d=t.value;else return;
-  pIdx=0;renderPrint()});
+  if(t.name==='pf')f.f=t.value;else if(t.name==='pk')f.k=t.value;else if(t.name==='psd')f.sd=t.value;else if(t.id==='pd')f.d=t.value;else if(t.id==='pOne'){f.one=+t.value;if(f.one<0)pIdx=0;renderPrint();return}else return;
+  f.one=-1;pIdx=0;renderPrint()});
 $('printPanel').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;const P=pState(),ed=evData(P.id);
-  if(b.id==='pPdf')await doPdf(ed,P.list,suffix(P.f,{}),b);
-  else if(b.id==='pPrn'){const list=P.list;if(!list.length)return;b.disabled=true;const pa=$('printArea');pa.innerHTML='';await ready;await pages(list,u=>{const im=new Image();im.src=u;im.alt='';pa.appendChild(im)},ed.layout,ed.cfg);
+  if(b.id==='pPdf')await doPdf(ed,P.out,P.one?oneSuffix(P.one,P.isD):suffix(P.f,{}),b);
+  else if(b.id==='pPdf1'){const r=P.list[pIdx];if(r)await doPdf(ed,[r],oneSuffix(r,P.isD),b)}
+  else if(b.id==='pPrn'){const list=P.out;if(!list.length)return;b.disabled=true;const pa=$('printArea');pa.innerHTML='';await ready;await pages(list,u=>{const im=new Image();im.src=u;im.alt='';pa.appendChild(im)},ed.layout,ed.cfg);
     await Promise.all([...pa.images].map(i=>i.decode().catch(()=>{})));setPrintPage(ed.layout);msg('Membuka jendela cetak…');b.disabled=false;window.print()}});
 function setPrintPage(layout){const mm=dims(layout).mm;let el=document.getElementById('pageStyle');if(!el){el=document.createElement('style');el.id='pageStyle';document.head.appendChild(el)}el.textContent=`@media print{@page{size:${mm[0]}mm ${mm[1]}mm;margin:0}#printArea img{width:${mm[0]}mm!important;height:${mm[1]-0.1}mm!important}}`}
-$('pPrev').onclick=()=>{if(pIdx>0){pIdx--;drawPrintPreview()}};$('pNext').onclick=()=>{pIdx++;drawPrintPreview()};
+function pNav(d){const P=pState(),j=pIdx+d;if(j<0||j>=P.list.length)return;pIdx=j;if(P.one){P.f.one=P.rows.indexOf(P.list[j]);renderPrint()}else drawPrintPreview()}
+$('pPrev').onclick=()=>pNav(-1);$('pNext').onclick=()=>pNav(1);
 document.addEventListener('keydown',e=>{if($('v-cetak').hidden||/INPUT|SELECT|TEXTAREA/.test((e.target||{}).tagName||''))return;if(e.key==='ArrowRight')$('pNext').click();if(e.key==='ArrowLeft')$('pPrev').click()});
 new ResizeObserver(()=>{if(!$('v-cetak').hidden)drawPrintPreview()}).observe($('pCanvas'));
 let dl=null;
